@@ -14,7 +14,9 @@
             <preferred-size width="150" height="-1"/>
           </grid>
         </constraints>
-        <properties/>
+        <properties>
+          <text value="127.0.0.1"/>
+        </properties>
       </component>
       <component id="5a9a7" class="javax.swing.JTextField" binding="Nick">
         <constraints>
@@ -23,7 +25,7 @@
           </grid>
         </constraints>
         <properties>
-          <text value=""/>
+          <text value="Pixel"/>
         </properties>
       </component>
       <component id="112bb" class="javax.swing.JButton" binding="connect_button">
