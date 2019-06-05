@@ -1,4 +1,3 @@
-package client;
 
 import javax.sound.sampled.*;
 import java.io.ByteArrayInputStream;
@@ -6,12 +5,11 @@ import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 
 public class AudioCapture01
-        {
+{
     public Thread captureThread;
-     volatile boolean stopCapture = false;
-    ByteArrayOutputStream
-            byteArrayOutputStream;
-    ByteArrayOutputStream byteArrayPlayStream;
+    volatile boolean stopCapture = false;
+     public ByteArrayOutputStream        byteArrayOutputStream;
+    public ByteArrayOutputStream byteArrayPlayStream;
     AudioFormat audioFormat;
     public TargetDataLine targetDataLine;
     AudioInputStream audioInputStream;
@@ -193,3 +191,4 @@ public class AudioCapture01
 //===================================//
 
 }//end outer class AudioCapture01.java
+

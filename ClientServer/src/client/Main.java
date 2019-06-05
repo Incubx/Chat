@@ -21,6 +21,6 @@ public class Main {
             // handle exception
         }
 
-        Start_window window = new Start_window();
+        Start_window window = new Start_window("127.0.0.1","Pixel");
     }
 }

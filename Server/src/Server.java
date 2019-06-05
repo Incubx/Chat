@@ -58,6 +58,8 @@ public class Server {
 
     }
 
+
+
     // удаляем клиента из коллекции при выходе из чата
     public void removeClient(ClientHandler client) {
         clients.remove(client);

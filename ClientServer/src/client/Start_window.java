@@ -11,14 +11,15 @@ public class Start_window extends JFrame {
     private JTextField Nick;
     private ClientWindow clientWindow;
 
-    public Start_window() {
+    public Start_window(String ip,String NickName) {
 
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 
         this.setContentPane(mainPanel);
 
         this.setBounds(300,200,500,200);
-
+        Nick.setText(NickName);
+        adress.setText(ip);
         setVisible(true);
         connect_button.addActionListener(new ActionListener() {
             @Override
