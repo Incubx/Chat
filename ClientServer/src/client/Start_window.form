@@ -15,7 +15,7 @@
           </grid>
         </constraints>
         <properties>
-          <text value="127.0.0.1"/>
+          <text value=""/>
         </properties>
       </component>
       <component id="5a9a7" class="javax.swing.JTextField" binding="Nick">
@@ -25,7 +25,7 @@
           </grid>
         </constraints>
         <properties>
-          <text value="Pixel"/>
+          <text value=""/>
         </properties>
       </component>
       <component id="112bb" class="javax.swing.JButton" binding="connect_button">

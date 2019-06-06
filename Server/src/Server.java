@@ -1,22 +1,25 @@
-
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 
-public class Server {
+public class Server implements  Runnable{
     // порт, который будет прослушивать наш сервер
     static final int PORT = 3443;
     ServerSocket serverSocket = null;
+      //Счетчик голосовых сообщений
+    public static volatile int counter = 0;
     // список клиентов, которые будут подключаться к серверу
     private ArrayList<ClientHandler> clients = new ArrayList<ClientHandler>();
 
-    public Server() {
+    public Server() {}
         // сокет клиента, это некий поток, который будет подключаться к серверу
         // по адресу и порту
-        Socket clientSocket = null;
+
         // серверный сокет
+
+    public void run(){
+        Socket clientSocket = null;
 
         try {
             // создаём серверный сокет на определенном порту
@@ -33,18 +36,15 @@ public class Server {
                 // каждое подключение клиента обрабатываем в новом потоке
                 new Thread(client).start();
             }
-        }
-        catch (IOException ex) {
+        } catch (IOException ex) {
             ex.printStackTrace();
-        }
-        finally {
+        } finally {
             try {
-                sendMessageToAllClients("Сервер отключен!");
+                sendMessageToAllClients("##SERVER##DOWN##");
                 // закрываем подключение
                 clientSocket.close();
                 serverSocket.close();
-            }
-            catch (IOException ex) {
+            } catch (IOException ex) {
                 ex.printStackTrace();
             }
         }
@@ -57,6 +57,7 @@ public class Server {
         }
 
     }
+
 
     // удаляем клиента из коллекции при выходе из чата
     public void removeClient(ClientHandler client) {
