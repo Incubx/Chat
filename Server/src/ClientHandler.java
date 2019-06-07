@@ -36,7 +36,7 @@ public class ClientHandler implements Runnable {
             //Инициализация массива и увеличение кол-ва пользователей
             DataLst = new ArrayList<>();
             soundmessage = false;
-            clients_count++;
+
             this.server = server;
             this.clientSocket = socket;
             //Получаем потоки
@@ -79,14 +79,31 @@ public class ClientHandler implements Runnable {
                             String[] m = clientMessage.split("[ ]");
                             String name = m[0];
                             clientName = name;
-                            for (int i = 0; i < clients.size(); i++) {
-                                sendMsg(clients.get(i) + "  #?#Nick#?#");
-                            }
+                            if (clients.indexOf(name) != -1) {
+                                outMessage.println("##INVALID##NAME##");
+                                outMessage.flush();
+                                try {
+                                    Thread.sleep(100);
+                                    clientSocket.close();
+                                }
+                                catch (InterruptedException e) {
+                                    e.printStackTrace();
+                                }
+                                catch (IOException e) {
+                                    e.printStackTrace();
+                                }
+
+                            } else{
+                                clients_count++;
+                                for (int i = 0; i < clients.size(); i++) {
+                                    sendMsg(clients.get(i) + "  #?#Nick#?#");
+                                }
                             sendMsg("##VOICES## " + server.counter);
                             server.sendMessageToAllClients(clientMessage);
                             clients.add(name);
                             server.sendMessageToAllClients(name + "  вошёл в чат! ");
                             server.sendMessageToAllClients("Клиентов в чате = " + clients_count);
+                        }
                         }
                         //Начало получения голосового сообщения
                         else if (clientMessage.contains("##VOICE##MESSAGE##")) {

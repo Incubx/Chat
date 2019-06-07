@@ -13,12 +13,12 @@ public class Server implements  Runnable{
     private ArrayList<ClientHandler> clients = new ArrayList<ClientHandler>();
 
     public Server() {}
-        // сокет клиента, это некий поток, который будет подключаться к серверу
+
+
+    public void run(){// сокет клиента, это некий поток, который будет подключаться к серверу
         // по адресу и порту
 
         // серверный сокет
-
-    public void run(){
         Socket clientSocket = null;
 
         try {

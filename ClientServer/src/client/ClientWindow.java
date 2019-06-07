@@ -52,26 +52,24 @@ public class ClientWindow extends JFrame {
     private TestActionListener Listener;
 
     // следующие поля отвечают за элементы формы
-    private JTextField jtfMessage;
-    private JButton jbSendMessage;
+    private JTextField MessageField;
+    private JButton send_btn;
     private JLabel jlNumberOfClients;
     private JPanel mainPanel;
-    private JTextPane jtaTextAreaMessage12;
+    private JTextPane CharArea;
     private JList ClientList;
 
     private JButton play_btn;
     private JScrollPane Scroller;
+    private JToggleButton Capture_btn;
     private ClientWindow cl = this;
 
 
     // конструктор, если не получилось подключиться, то возвращаемся к начальному окну.
     public ClientWindow(String SERVER_HOST, String Nickname) {
         try {
-            SoundCaptureListener SoundListener = new SoundCaptureListener();
+
             sounder = new AudioCapture01();
-            jtaTextAreaMessage12.addKeyListener(SoundListener);
-            play_btn.addKeyListener(SoundListener);
-            jbSendMessage.addKeyListener(SoundListener);
             ClientList.setFocusable(false);
             jlNumberOfClients.setFocusable(false);
 
@@ -80,7 +78,7 @@ public class ClientWindow extends JFrame {
             downloading = false;
             counter = 0;
             //Инициализация массивов и объектов
-            doc = jtaTextAreaMessage12.getStyledDocument();
+            doc = CharArea.getStyledDocument();
             clients = new ArrayList<>();
             clientscolors = new ArrayList<>();
             Listener = new TestActionListener();
@@ -133,7 +131,17 @@ public class ClientWindow extends JFrame {
                                 System.out.println(inMes);
                                 if (inMes.contains("Клиентов в чате = ")) {
                                     jlNumberOfClients.setText(inMes);
-                                } else if (inMes.contains("#?#Nick#?#")) {
+                                }
+                                //Если Ник занят
+                                else if(inMes.contains("##INVALID##NAME##"))
+                                {
+                                    JFrame topFrame = (JFrame) SwingUtilities.getWindowAncestor(cl);
+                                    JOptionPane.showMessageDialog(topFrame, "Данный Никнейм Занят!");
+                                    Start_window restart = new Start_window(SERVER_HOST, "");
+                                    cl.dispose();
+
+                                }
+                                else if (inMes.contains("#?#Nick#?#")) {
                                     String name = getName(inMes);
                                     clients.add(name);
                                     counter++;
@@ -189,8 +197,9 @@ public class ClientWindow extends JFrame {
                                     voice_btn.setFont(new Font("Arial", Font.PLAIN, 12));
                                     voice_btn.setOpaque(false);
                                     voice_btn.setSize(200, 15);
-                                    jtaTextAreaMessage12.setCaretPosition(doc.getLength());
-                                    jtaTextAreaMessage12.insertComponent(voice_btn);
+                                    CharArea.setCaretPosition(doc.getLength());
+                                    CharArea.insertComponent(voice_btn);
+                                    doc.insertString(doc.getLength(),"\n",null);
 
 
                                 }
@@ -227,7 +236,7 @@ public class ClientWindow extends JFrame {
                                     }
                                     Thread.sleep(20);
                                     sounder.playAudio();
-                                    jtaTextAreaMessage12.grabFocus();
+                                    CharArea.grabFocus();
                                     //Продолжаем скачивать
                                 } else {
                                     DataList.add(DataPart);
@@ -241,11 +250,33 @@ public class ClientWindow extends JFrame {
                         }
                     }
                 } catch (Exception e) {
+                    e.printStackTrace();
                 }
 
             }
         }).start();
 
+
+
+        Capture_btn.addItemListener(new ItemListener() {
+            @Override
+            public void itemStateChanged(ItemEvent e) {
+                if(Capture_btn.isSelected()) {
+                    play_btn.setEnabled(false);
+                    //Захват данных
+                    // с микрофона
+                    //пока не отпущена кнопка
+                    sounder.captureAudio();
+
+                }
+                else {
+                    sounder.stopCapture = true;
+                    play_btn.setEnabled(true);
+
+                }
+
+            }
+        });
 
         //Действие при закрытии окна
         addWindowListener(new WindowAdapter() {
@@ -260,40 +291,42 @@ public class ClientWindow extends JFrame {
                     inMessage.close();
                     clientSocket.close();
                 } catch (IOException exc) {
+                    exc.printStackTrace();
 
                 }
             }
         });
 
         // обработчик события нажатия на кнопки отправки сообщения
-        jbSendMessage.addActionListener(new ActionListener() {
+        send_btn.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
 
                 //отправляем сообщение
                 sendMsg();
                 // фокус на текстовое поле с сообщением
-                jtfMessage.grabFocus();
+                MessageField.grabFocus();
             }
 
         });
         // при фокусе поле сообщения очищается
-        jtfMessage.addFocusListener(new FocusAdapter() {
+        MessageField.addFocusListener(new FocusAdapter() {
             @Override
             public void focusGained(FocusEvent e) {
-                jtfMessage.setText("");
+                MessageField.setText("");
             }
         });
         //При нажатии на Enter отправка сообщения при нажатии на V запись отпускаю клавишу перестаем записывать.
-        jtfMessage.addKeyListener(new KeyAdapter() {
+        MessageField.addKeyListener(new KeyAdapter() {
 
             public void keyPressed(KeyEvent e) {
                 super.keyPressed(e);
                 if (e.getKeyCode() == KeyEvent.VK_ENTER) {
 
                     sendMsg();
+                    play_btn.setEnabled(false);
                     // фокус на текстовое поле с сообщением
-                    jtfMessage.grabFocus();
+                    MessageField.grabFocus();
                 }
             }
         });
@@ -306,14 +339,13 @@ public class ClientWindow extends JFrame {
 
                 try {
                     sounder.byteArrayPlayStream.write(sounder.byteArrayOutputStream.toByteArray());
-                    sounder.byteArrayOutputStream.reset();
                 }
                 catch (IOException ex) {
-
+                    ex.printStackTrace();
                 }
                 sounder.playAudio();
 
-                jtaTextAreaMessage12.grabFocus();
+                MessageField.grabFocus();
 
 
             }
@@ -346,7 +378,7 @@ public class ClientWindow extends JFrame {
 
     // отправка сообщения
     public void sendMsg() {
-        if (jtfMessage.getText().isEmpty()) {
+        if (MessageField.getText().isEmpty()) {
             try {
                 if(sounder.byteArrayOutputStream.size()>0){
                 outMessage.println("##VOICE##MESSAGE##\n");
@@ -357,9 +389,7 @@ public class ClientWindow extends JFrame {
                     byte[] data_part = new byte[10000];
                     int k = 0;
                     while (sdvig < data.length - 1) {
-
-                        for (int i = 0; i < 10000; i++)
-                            data_part[i] = data[i + sdvig];
+                        System.arraycopy(data,sdvig,data_part,0,10000);
 
 
                         outBStream.write(data_part);
@@ -376,27 +406,28 @@ public class ClientWindow extends JFrame {
                     System.out.println("Отправлено" + k + " частей");
                     sounder.byteArrayOutputStream.reset();
                     play_btn.setEnabled(false);
-                    jtaTextAreaMessage12.grabFocus();
+                    MessageField.grabFocus();
                 }
             } catch (IOException e) {
+                e.printStackTrace();
             }
 
 
 
         } else {
             // формируем сообщение для отправки на сервер
-            String messageStr = clientName + " : " + jtfMessage.getText();
+            String messageStr = clientName + " : " + MessageField.getText();
 
             // отправляем сообщение
             outMessage.println(messageStr);
             outMessage.flush();
-            jtfMessage.setText("");
-            jtfMessage.grabFocus();
+            MessageField.setText("");
+            MessageField.grabFocus();
         }
     }
 
     //Отправкра начального сообщения с ником
-    public void sendNick() {
+    private void sendNick() {
         // формируем сообщение для отправки на сервер
         String messageStr = clientName + "  #?#Nick#?# ";
         // отправляем сообщение
@@ -405,10 +436,10 @@ public class ClientWindow extends JFrame {
     }
 
     //Написать ник цветным
-    public void addColoredText(String text, Color color) {
-        StyledDocument doc = jtaTextAreaMessage12.getStyledDocument();
+    private void addColoredText(String text, Color color) {
+        StyledDocument doc = CharArea.getStyledDocument();
 
-        Style style = jtaTextAreaMessage12.addStyle("Color Style", null);
+        Style style = CharArea.addStyle("Color Style", null);
         StyleConstants.setForeground(style, color);
         try {
             doc.insertString(doc.getLength(), text, style);
@@ -425,44 +456,5 @@ public class ClientWindow extends JFrame {
 
         }
     }
-
-    public class SoundCaptureListener extends KeyAdapter {
-        boolean pressed = false;
-
-        @Override
-        public void keyPressed(KeyEvent e) {
-            super.keyPressed(e);
-
-            if (e.getKeyCode() == KeyEvent.VK_V) {
-                if (!pressed) {
-                    play_btn.setEnabled(false);
-                    //Захват данных
-                    // с микрофона
-                    //пока не нажата Stop
-                    sounder.captureAudio();
-                    pressed = true;
-
-                }
-            }
-        }
-        @Override
-        public void keyReleased(KeyEvent e) {
-
-            super.keyReleased(e);
-            if (e.getKeyCode() == KeyEvent.VK_V) {
-
-                pressed = false;
-                sounder.stopCapture = true;
-                play_btn.setEnabled(true);
-
-            }
-
-        }
-    }
-
-
+    //Нажатие на клавишу
 }
-
-
-
-

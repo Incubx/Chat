@@ -28,6 +28,7 @@ public class Window extends JFrame {
                     // отправляем служебное сообщение, которое является признаком того, что клиент вышел из чата
                    server.serverSocket.close();
                 } catch (IOException exc) {
+                    exc.printStackTrace();
 
                 }
                 for(int i=0;i<server.counter;i++)
