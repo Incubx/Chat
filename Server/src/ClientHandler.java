@@ -17,10 +17,10 @@ public class ClientHandler implements Runnable {
     private Server server;
     // исходящее сообщение
     private PrintWriter outMessage;
-    private BufferedOutputStream outBStream;
+    private OutputStream outBStream;
     // входящее собщение
     private Scanner inMessage;
-    private BufferedInputStream inBStream;
+    private InputStream inBStream;
     // клиентский сокет
     private Socket clientSocket = null;
     //Имя данного пользователя
@@ -42,8 +42,8 @@ public class ClientHandler implements Runnable {
             //Получаем потоки
             this.outMessage = new PrintWriter(socket.getOutputStream());
             this.inMessage = new Scanner(socket.getInputStream());
-            outBStream = new BufferedOutputStream(socket.getOutputStream());
-            inBStream = new BufferedInputStream(socket.getInputStream());
+            /*outBStream = new BufferedOutputStream(socket.getOutputStream());
+            inBStream = new BufferedInputStream(socket.getInputStream());*/
 
         } catch (IOException ex) {
             ex.printStackTrace();
@@ -61,6 +61,7 @@ public class ClientHandler implements Runnable {
                     //Если не качаем звук
                     if (inMessage.hasNext()) {
                         String clientMessage = inMessage.nextLine();
+                        System.out.println(clientMessage);
                         // если клиент отправляет данное сообщение, то цикл прерывается и
                         // клиент выходит из чата
                         if (clientMessage.contains("##session##end##")) {
@@ -96,8 +97,7 @@ public class ClientHandler implements Runnable {
                                 for (int i = 0; i < clients.size(); i++) {
                                     sendMsg(clients.get(i) + "  #?#Nick#?#");
                                 }
-                            sendMsg("##VOICES## " + server.counter);
-                                sendMsg("##FILES## "+server.file_counter);
+                            sendMsg("##VOICES## " + server.sound_counter);
                             server.sendMessageToAllClients(clientMessage);
                             clients.add(name);
                             server.sendMessageToAllClients(name + "  вошёл в чат! ");
@@ -106,67 +106,76 @@ public class ClientHandler implements Runnable {
                         }
                         //Начало получения голосового сообщения
                         else if (clientMessage.contains("##VOICE##MESSAGE##")) {
-                            DataLst.clear();
-                            System.out.println("Дальше будет запись голосового сообщения");
-                            inMessage.reset();
-                            soundmessage = true;
-                        }
 
-                        else if(clientMessage.contains("##NEW##FILE##"))
+                            byte[] bytes = new byte[8*1024];
+                            int count;
+                            String filename = "SOUND"+server.sound_counter+".txt";
+                            FileOutputStream fos = new FileOutputStream(filename);
+                            inBStream = new DataInputStream(clientSocket.getInputStream());
+                            while ((count = inBStream.read(bytes)) > 0) {
+                                System.out.println(bytes[0]);
+                                if(count==1) break;
+
+                                fos.write(bytes, 0, count);
+                                fos.flush();
+                                System.out.println(count);
+                            }
+                            System.out.println("Принятно!");
+                            fos.close();
+
+
+                            server.sendMessageToAllClients(clientName+" ##NEW##VOICE##");
+                            server.sound_counter++;
+                        }
+                        else if(clientMessage.contains("##SHARED##FILE##"))
                         {
                             String[] mas = clientMessage.split("[ ]");
-                            int length = Integer.valueOf(mas[1]);
-                            String name = mas[2];
-                            byte[] Data = new byte[length];
-                            Thread.sleep(100);
-                            inBStream.read(Data);
+                            String filename = mas[1];
 
-                            FileOutputStream fos = new FileOutputStream(new File(name));
-                                fos.write(Data);
-                                fos.flush();
+                            byte[] bytes = new byte[16*1024];
+                            FileOutputStream fout= new FileOutputStream(filename);
+                            DataInputStream in = new DataInputStream(clientSocket.getInputStream());
+                            int count;
+                            while ((count = in.read(bytes)) > 0) {
+                                if(count==1) break;
+                                fout.write(bytes, 0, count);
+                                System.out.println(count);
+                            }
+                            System.out.println("Файл принят!");
 
-                            fos.close();
-                            server.file_counter++;
-                            server.sendMessageToAllClients(clientName  + " ##NEW##FILE##");
+                            fout.close();
+
+                            server.files.add(filename);
+                            server.sendMessageToAllClients(clientName  +" "+filename +" ##NEW##FILE##");
 
 
 
 
                         }
                         //Запрос на загрузку записи
-                        else if (clientMessage.contains("##ACTIVATE##")) {
+                        else if (clientMessage.contains("##DOWNLOAD##VOICE##REQUEST##")) {
                             try {
                                 //Узнаем какую запись надо загрузить
                                 String[] mas = clientMessage.split("[ ]");
                                 int number = Integer.valueOf(mas[1]);
-                                DataLst.clear();
-                                //Загружаем запись из файла
-                                FileInputStream fin = new FileInputStream("Sound" + number + ".txt");
-                                while (fin.available() > 0) {
-                                    byte[] DataPart = new byte[10000];
-                                    fin.read(DataPart);
-                                    DataLst.add(DataPart);
+
+                                outMessage.println("##REQUESTED##VOICE##");
+                                outMessage.flush();
+                                Thread.sleep(100);
+
+                                outBStream = new DataOutputStream(clientSocket.getOutputStream());
+                                byte[] data = new byte[8*1024];
+                                int count;
+                                int sdvig =0;
+                                FileInputStream fin = new FileInputStream("SOUND"+number+".txt");
+                                while((count=fin.read(data))>0) {
+                                    outBStream.write(data,0,count);
+                                    System.out.println(count);
                                 }
-                                fin.close();
-                                //Отсылаем
-                                sendMsg("##VOICE##MESSAGE##\n");
-                                int k = 0;
-                                System.out.println(DataLst.size());
-                                for (int i = 0; i < DataLst.size(); i++) {
-                                    Thread.sleep(20);
-                                    outBStream.write(DataLst.get(i));
-                                    System.out.println(DataLst.get(i).length);
-                                    System.out.println(DataLst.get(i));
-                                    outBStream.flush();
-                                    k++;
-                                }
+                                System.out.println("Отправлено!");
                                 outBStream.flush();
-                                Thread.sleep(10);
-                                outMessage.println("\n");
-                                outMessage.flush();
-                                outMessage.println("##END##OF##VOICE##MESSAGE\n");
-                                outMessage.flush();
-                                System.out.println("Отправлено" + k + " частей");
+                                outBStream.write(-1);
+
                             } catch (IOException e) {
 
                             }
@@ -174,26 +183,35 @@ public class ClientHandler implements Runnable {
 
                         }
 
-                        else if(clientMessage.contains("##DOWNLOAD##FILE##"))
+                        else if(clientMessage.contains("##DOWNLOAD##FILE##REQUEST##"))
                         {
                             try {
                                 //Узнаем какую запись надо загрузить
                                 String[] mas = clientMessage.split("[ ]");
-                                int number = Integer.valueOf(mas[1]);
-                                //Загружаем запись из файла
-                                FileInputStream fin = new FileInputStream("FILE" + number + ".txt");
-                               int length = fin.available();
-                               byte[] File_data = new byte[length];
-                               fin.read(File_data);
+                                String filename = mas[1];
+                                //Передаем запись
+                                outMessage.println("##REQUESTED##FILE## "+filename);
+                                outMessage.flush();
+                                Thread.sleep(100);
+
+
+                                byte[] bytes = new byte[16 * 1024];
+                                FileInputStream fin = new FileInputStream(filename);
+                                DataOutputStream out = new DataOutputStream(clientSocket.getOutputStream());
+
+                                int count;
+                                while ((count = fin.read(bytes)) > 0) {
+                                    out.write(bytes, 0, count);
+                                    System.out.println(count);
+                                }
+                                out.flush();
+                                Thread.sleep(100);
+                                out.write(-1);
+                                System.out.println("Файл отправлен");
                                 fin.close();
                                 //Отсылаем
 
-                                sendMsg("##FILE## ");
-                                outBStream.write(File_data);
-                                outBStream.flush();
-                                Thread.sleep(10);
-                                outMessage.println("\n");
-                                outMessage.flush();
+
                             } catch (IOException e) {
 
                             }
@@ -207,40 +225,7 @@ public class ClientHandler implements Runnable {
                     }
 
                 }
-                //Если качаем аудио
-                else {
 
-                    byte[] DataPart = new byte[10000];
-
-
-                    inBStream.read(DataPart);
-                    String part = new String(DataPart);
-
-                    //Если закончили качать аудио, то записываем в файл.
-                    if (part.contains("##END##OF##VOICE##MESSAGE")) {
-                        System.out.println(part);
-                        System.out.println("Конец голосового сообщения!");
-                        //Загружаем запись в файл
-                        FileOutputStream fos = new FileOutputStream(new File("Sound" + server.counter + ".txt"));
-                        for (int i = 0; i < DataLst.size(); i++) {
-
-                            fos.write(DataLst.get(i));
-                            fos.flush();
-                        }
-                        fos.close();
-                        server.counter++;
-                        //отправляем сообщение о том, что есть новое голосовое сообщение
-                        server.sendMessageToAllClients(clientName + " " + server.counter + " " + "##NEW##VOICE##");
-                        soundmessage = false;
-                        DataLst.clear();
-
-                    } else {
-                        DataLst.add(DataPart);
-                        System.out.println(DataPart.length);
-                        System.out.println(DataPart.toString());
-                    }
-
-                }
 
                 // останавливаем выполнение потока на 100 мс
                 Thread.sleep(100);

@@ -8,8 +8,8 @@ public class Server implements  Runnable{
     static final int PORT = 3443;
     ServerSocket serverSocket = null;
       //Счетчик голосовых сообщений
-    public static volatile int counter = 0;
-    public static volatile int file_counter = 0;
+    public static volatile int sound_counter = 0;
+    public static volatile ArrayList<String> files = new ArrayList<>();
     // список клиентов, которые будут подключаться к серверу
     private ArrayList<ClientHandler> clients = new ArrayList<ClientHandler>();
 
@@ -38,14 +38,7 @@ public class Server implements  Runnable{
         } catch (IOException ex) {
             ex.printStackTrace();
         } finally {
-            try {
-                sendMessageToAllClients("##SERVER##DOWN##");
-                // закрываем подключение
-                clientSocket.close();
-                serverSocket.close();
-            } catch (IOException ex) {
-                ex.printStackTrace();
-            }
+
         }
     }
 
@@ -61,5 +54,17 @@ public class Server implements  Runnable{
     // удаляем клиента из коллекции при выходе из чата
     public void removeClient(ClientHandler client) {
         clients.remove(client);
+    }
+
+    public void ShutDown(){
+        sendMessageToAllClients("##SERVER##DOWN##");
+        try {
+            serverSocket.close();
+        }
+        catch (IOException e)
+        {
+            e.printStackTrace();
+        }
+
     }
 }
