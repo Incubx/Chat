@@ -10,7 +10,7 @@ public class AudioCapture01 {
     public Thread captureThread;
     public TargetDataLine targetDataLine;
     volatile boolean stopCapture = false;
-    ByteArrayOutputStream
+    volatile ByteArrayOutputStream
             byteArrayOutputStream;
     ByteArrayOutputStream byteArrayPlayStream;
     AudioFormat audioFormat;
@@ -38,12 +38,14 @@ public class AudioCapture01 {
     //Этот метод захватывает аудио
     // с микрофона и сохраняет
     // в объект ByteArrayOutputStream
-    public void captureAudio() {
+    public void captureAudio() throws  LineUnavailableException {
 
             //Создаем поток для захвата аудио
             // и запускаем его
             //он будет работать
             //пока не нажмут кнопку
+        targetDataLine.open(audioFormat);
+        targetDataLine.start();
             captureThread =
                     new Thread(
                             new CaptureThread());
@@ -131,8 +133,6 @@ public class AudioCapture01 {
         byte tempBuffer[] = new byte[10000];
 
         public void run() {
-            byteArrayOutputStream =
-                    new ByteArrayOutputStream();
 
             stopCapture = false;
             try {
@@ -152,8 +152,7 @@ public class AudioCapture01 {
                                 tempBuffer, 0, cnt);
                     }
                 }
-                byteArrayOutputStream.close();
-
+                System.out.println(byteArrayOutputStream.size());
                 targetDataLine.close();
             } catch (Exception e) {
                 System.out.println(e);
@@ -167,8 +166,10 @@ public class AudioCapture01 {
     class PlayThread extends Thread {
         byte tempBuffer[] = new byte[10000];
 
+
         public void run() {
             try {
+                Thread.currentThread().setPriority(MAX_PRIORITY);
                 int cnt;
                 // цикл пока не вернется -1
 
@@ -187,6 +188,7 @@ public class AudioCapture01 {
 
                 sourceDataLine.drain();
                 sourceDataLine.close();
+                byteArrayPlayStream.reset();
             } catch (Exception e) {
                 System.out.println(e);
             }

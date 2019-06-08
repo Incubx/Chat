@@ -1,10 +1,8 @@
 import javax.swing.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.File;
-import java.io.IOException;
+
 
 public class Window extends JFrame {
 
@@ -24,17 +22,18 @@ public class Window extends JFrame {
             @Override
             public void windowClosing(WindowEvent e) {
                 super.windowClosing(e);
-                try {
-                    // отправляем служебное сообщение, которое является признаком того, что клиент вышел из чата
-                   server.serverSocket.close();
-                } catch (IOException exc) {
-                    exc.printStackTrace();
-
-                }
-                for(int i=0;i<server.counter;i++)
+                    // Отключаем сервер и удаляем все загруженные голосовые сообщения и файлы.
+                   server.ShutDown();
+                for(int i=0;i<server.sound_counter;i++)
                 {
                     File file = new File("Sound"+i+".txt");
                     file.delete();
+                }
+                for(int i=0;i<server.files.size();i++)
+                {
+                    File file = new File(server.files.get(i));
+                    file.delete();
+
                 }
             }
         });

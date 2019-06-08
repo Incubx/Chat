@@ -1,5 +1,6 @@
 package client;
 
+import javax.sound.sampled.LineUnavailableException;
 import javax.swing.*;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.Style;
@@ -21,12 +22,12 @@ public class ClientWindow extends JFrame {
     private Socket clientSocket;
     //Счетчик голосовых сообщений
     private int counter_voice;
-    private int counter_files;
+
     // входящее сообщения (для звука, для текста)
-    private BufferedInputStream inBStream;
+    private InputStream inBStream;
     private Scanner inMessage;
     // исходящее сообщение (для звука, для текста)
-    private BufferedOutputStream outBStream;
+    private OutputStream outBStream;
     private PrintWriter outMessage;
     // имя клиента
     private String clientName = "";
@@ -43,13 +44,12 @@ public class ClientWindow extends JFrame {
     //Объект для записи и воспроизведения звука
     private AudioCapture01 sounder ;
     //флаг, приходят ли сейчас обычные сообщения или качается аудио.
-    private boolean downloading;
-    //Массив фаргментов аудио
-    private ArrayList<byte[]> DataList;
 
-    private byte[] File_Data;
+
+    private File selectedfile;
+
     //Обработчик нажатия на кнопки в чате
-    private TestActionListener sound_listener;
+    private Sound_Listener sound_listener;
     private File_Listener file_listener;
 
 
@@ -65,6 +65,7 @@ public class ClientWindow extends JFrame {
     private JScrollPane Scroller;
     private JToggleButton Capture_btn;
     private JButton LoadFileBtn;
+    private JLabel Attachment;
     //Ссылка на данное окно, чтобы была возможность закрыть его из другого потока.
     private ClientWindow cl = this;
 
@@ -77,17 +78,16 @@ public class ClientWindow extends JFrame {
             jlNumberOfClients.setFocusable(false);
             //Инициализация массивов и объектов
             counter_voice = 0;
-            counter_files = 0;
-            downloading = false;
+            selectedfile = new File("");
             counter = 0;
             doc = CharArea.getStyledDocument();
-            sound_listener = new TestActionListener();
+            sound_listener = new Sound_Listener();
             file_listener= new File_Listener();
             play_btn.setEnabled(false);
             listmodel = new DefaultListModel();
             ClientList.setModel(listmodel);
 
-            DataList = new ArrayList<>();
+
             clients = new ArrayList<>();
             clientscolors = new ArrayList<>();
 
@@ -96,8 +96,8 @@ public class ClientWindow extends JFrame {
             //Получаем поток записи и считывания (текста и для звука буферный)
             inMessage = new Scanner(clientSocket.getInputStream());
             outMessage = new PrintWriter(clientSocket.getOutputStream());
-            outBStream = new BufferedOutputStream(clientSocket.getOutputStream());
-            inBStream = new BufferedInputStream(clientSocket.getInputStream());
+            /*outBStream = new BufferedOutputStream(clientSocket.getOutputStream());
+            inBStream = new BufferedInputStream(clientSocket.getInputStream());*/
             //Узнаем ник клиента
             clientName = Nickname;
             //Отправляем данную информацию на сервер
@@ -105,7 +105,7 @@ public class ClientWindow extends JFrame {
             //Начальные настройки окна
             setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
             setContentPane(mainPanel);
-            setBounds(600, 300, 600, 500);
+            setBounds(600, 300, 700, 500);
             setTitle("Chat");
             setVisible(true);
 
@@ -141,156 +141,145 @@ public class ClientWindow extends JFrame {
 
                         // если есть входящее сообщение
                         if (inMessage.hasNext()) {
-                            //Если не загрузка аудио
-                            if (!downloading) {
-                                // считываем его
-                                String inMes = inMessage.nextLine();
-                                System.out.println(inMes);
-                                //Если это информация о кол-ве клиентов
-                                if (inMes.contains("Клиентов в чате = ")) {
-                                    jlNumberOfClients.setText(inMes);
-                                }
-                                //Если Ник занят, уходим в стартовое окно.
-                                else if (inMes.contains("##INVALID##NAME##")) {
-                                    JFrame topFrame = (JFrame) SwingUtilities.getWindowAncestor(cl);
-                                    JOptionPane.showMessageDialog(topFrame, "Данный Никнейм Занят!");
-                                    Start_window restart = new Start_window(SERVER_HOST, "");
-                                    cl.dispose();
-
-                                }
-                                //Если информация о нике другого пользователя,
-                                //Создаем для него цвет и добавляем в список
-                                else if (inMes.contains("#?#Nick#?#")) {
-                                    String name = getName(inMes);
-                                    clients.add(name);
-                                    counter++;
-                                    Color clr = new Color(rand.nextFloat(), rand.nextFloat(), rand.nextFloat());
-                                    clr.brighter();
-                                    clientscolors.add(clr);
-                                    //Добавление в список имени клиента
-                                    listmodel.addElement(name);
-                                    ClientList.setSelectedIndex(counter);
-                                    ClientList.ensureIndexIsVisible(counter);
-
-                                    //Счетчик сколько до подключения была голосовых сообщений
-                                } else if (inMes.contains("##VOICES##")) {
-                                    String[] split = inMes.split("[ ]");
-                                    counter_voice = Integer.valueOf(split[1]);
-                                } else if (inMes.contains("##FILES##")) {
-                                    String[] split = inMes.split("[ ]");
-                                    counter_files = Integer.valueOf(split[1]);
-                                } else if (inMes.contains("##FILED##")) {
-                                    int length = inBStream.available();
-                                    byte[] File_data = new byte[length];
-                                    inBStream.read(File_data);
-                                    inMessage = new Scanner(clientSocket.getInputStream());
-                                    FileOutputStream fout = new FileOutputStream("Downloaded_file.txt");
-                                    fout.write(File_data);
-                                    fout.close();
-
-                                }
-                                //Начало загрузки звука
-                                else if (inMes.contains("##VOICE##MESSAGE##")) {
-                                    DataList.clear();
-                                    System.out.println("Далее качается аудио файл");
-                                    inMessage.reset();
-                                    downloading = true;
-                                }
-                                //Удаление вышедшего из чата пользователя из списков
-                                else if (inMes.contains("##session##end##")) {
-                                    String name = getName(inMes);
-                                    listmodel.removeElement(name);
-                                    int index = clients.indexOf(name);
-                                    clients.remove(index);
-                                    clientscolors.remove(index);
-                                    counter--;
-                                }
-                                //Если сервер отключился выкидываем на стартовое окно
-                                else if (inMes.contains("##SERVER##DOWN##")) {
-
-                                    JFrame topFrame = (JFrame) SwingUtilities.getWindowAncestor(cl);
-                                    JOptionPane.showMessageDialog(topFrame, "Подключение разорвано!");
-                                    Start_window restart = new Start_window(SERVER_HOST, Nickname);
-                                    cl.dispose();
-                                }
-                                //кто-то прислал голосовое, отображение кнопки для воспроизведения
-                                else if (inMes.contains("##NEW##VOICE##")) {
-                                    String name = getName(inMes);
-                                    Color clr = findColor(name);
-                                    addColoredText(name, clr);
-
-                                    JButton voice_btn = new JButton("прослушать сообщение");
-                                    voice_btn.setActionCommand(Integer.toString(counter_voice));
-                                    counter_voice++;
-                                    voice_btn.addActionListener(sound_listener);
-                                    voice_btn.setFont(new Font("Arial", Font.PLAIN, 12));
-                                    voice_btn.setOpaque(false);
-                                    voice_btn.setSize(200, 15);
-                                    CharArea.setCaretPosition(doc.getLength());
-                                    CharArea.insertComponent(voice_btn);
-                                    doc.insertString(doc.getLength(), "\n", null);
-
-
-                                } else if (inMes.contains("##NEW##FILE##")) {
-
-                                    String name = getName(inMes);
-                                    Color clr = findColor(name);
-                                    addColoredText(name, clr);
-                                    System.out.println("Пришел файл");
-                                    JButton file_btn = new JButton("загрузить файл");
-                                    file_btn.setActionCommand(Integer.toString(counter_files));
-                                    counter_files++;
-                                    file_btn.addActionListener(file_listener);
-                                    file_btn.setFont(new Font("Arial", Font.PLAIN, 10));
-                                    file_btn.setOpaque(false);
-                                    file_btn.setSize(100, 12);
-                                    CharArea.setCaretPosition(doc.getLength());
-                                    CharArea.insertComponent(file_btn);
-                                    doc.insertString(doc.getLength(), "\n", null);
-                                }
-                                //Пришло обычное сообщение
-                                else {
-                                    String[] m = inMes.split("[ ]");
-                                    String name = m[0];
-                                    Color clr = findColor(name);
-                                    // выводим сообщение
-                                    StringBuilder str = new StringBuilder();
-                                    for (int i = 1; i < m.length; i++) {
-                                        str.append(m[i]);
-                                        str.append(" ");
-                                    }
-                                    addColoredText(name, clr);
-                                    doc.insertString(doc.getLength(), str.toString() + "\n", null);
-                                }
+                            // считываем его
+                            String inMes = inMessage.nextLine();
+                            System.out.println(inMes);
+                            //Если это информация о кол-ве клиентов
+                            if (inMes.contains("Клиентов в чате = ")) {
+                                jlNumberOfClients.setText(inMes);
                             }
-                            //Если сейчас качаем аудио
+                            //Если Ник занят, уходим в стартовое окно.
+                            else if (inMes.contains("##INVALID##NAME##")) {
+                                JFrame topFrame = (JFrame) SwingUtilities.getWindowAncestor(cl);
+                                JOptionPane.showMessageDialog(topFrame, "Данный Никнейм Занят!");
+                                Start_window restart = new Start_window(SERVER_HOST, "");
+                                cl.dispose();
+
+                            }
+                            //Если информация о нике другого пользователя,
+                            //Создаем для него цвет и добавляем в список
+                            else if (inMes.contains("#?#Nick#?#")) {
+                                String name = getName(inMes);
+                                clients.add(name);
+                                counter++;
+                                Color clr = new Color(rand.nextFloat(), rand.nextFloat(), rand.nextFloat());
+                                clr.brighter();
+                                clientscolors.add(clr);
+                                //Добавление в список имени клиента
+                                listmodel.addElement(name);
+                                ClientList.setSelectedIndex(counter);
+                                ClientList.ensureIndexIsVisible(counter);
+
+
+                            }
+                            //Счетчик сколько до подключения была голосовых сообщений
+                            else if (inMes.contains("##VOICES##")) {
+                                String[] split = inMes.split("[ ]");
+                                counter_voice = Integer.valueOf(split[1]);
+
+                            }
+                            //Удаление вышедшего из чата пользователя из списков
+                            else if (inMes.contains("##session##end##")) {
+                                String name = getName(inMes);
+                                listmodel.removeElement(name);
+                                int index = clients.indexOf(name);
+                                clients.remove(index);
+                                clientscolors.remove(index);
+                                counter--;
+                            }
+                            //Если сервер отключился выкидываем на стартовое окно
+                            else if (inMes.contains("##SERVER##DOWN##")) {
+
+                                JFrame topFrame = (JFrame) SwingUtilities.getWindowAncestor(cl);
+                                sounder.targetDataLine.close();
+                                JOptionPane.showMessageDialog(topFrame, "Подключение разорвано!");
+                                Start_window restart = new Start_window(SERVER_HOST, Nickname);
+                                cl.dispose();
+                            }
+                            //На сервер пришло новое звуковое сообщение
+                            else if (inMes.contains("##NEW##VOICE##")) {
+                                String name = getName(inMes);
+                                Color clr = findColor(name);
+                                addColoredText(name, clr);
+
+                                JButton voice_btn = new JButton("прослушать сообщение");
+                                voice_btn.setActionCommand(Integer.toString(counter_voice));
+                                counter_voice++;
+                                voice_btn.addActionListener(sound_listener);
+                                voice_btn.setFont(new Font("Arial", Font.PLAIN, 12));
+                                voice_btn.setOpaque(false);
+                                voice_btn.setSize(200, 15);
+                                CharArea.setCaretPosition(doc.getLength());
+                                CharArea.insertComponent(voice_btn);
+                                doc.insertString(doc.getLength(), "\n", null);
+
+
+                            }
+                            //На сервер пришел новый файл
+                            else if (inMes.contains("##NEW##FILE##")) { //Clientname,filename,kod
+                                String[] mas = inMes.split("[ ]");
+                                String name = mas[0];
+                                String fileName = mas[1];
+                                Color clr = findColor(name);
+                                addColoredText(name, clr);
+                                System.out.println("Пришел файл");
+                                JButton file_btn = new JButton(fileName);
+                                file_btn.setActionCommand(fileName);
+                                file_btn.addActionListener(file_listener);
+                                file_btn.setFont(new Font("Arial", Font.PLAIN, 10));
+                                file_btn.setOpaque(false);
+                                file_btn.setSize(100, 12);
+                                CharArea.setCaretPosition(doc.getLength());
+                                CharArea.insertComponent(file_btn);
+                                doc.insertString(doc.getLength(), "\n", null);
+                            }
+                            //Приходит запрошенное голосовое сообщение
+                            else if(inMes.contains("##REQUESTED##VOICE##")) {
+                                byte[] bytes = new byte[8*1024];
+                                int count;
+                                inBStream = new DataInputStream(clientSocket.getInputStream());
+                                while ((count = inBStream.read(bytes)) > 0) {
+                                    System.out.println(bytes[0]);
+                                    if(count==1) break;
+                                    sounder.byteArrayPlayStream.write(bytes, 0, count);
+                                    sounder.byteArrayPlayStream.flush();
+                                    System.out.println(count);
+                                }
+                                System.out.println("Принятно!");
+                                sounder.playAudio();
+                            }
+                            //Приходит запрошенный файл
+                            else if(inMes.contains("##REQUESTED##FILE##"))  {
+                                String[] mas = inMes.split("[ ]");
+                                String filename = mas[1];
+
+                                byte[] bytes = new byte[16*1024];
+                                FileOutputStream fout= new FileOutputStream(filename);
+                                DataInputStream in = new DataInputStream(clientSocket.getInputStream());
+                                int count;
+                                while ((count = in.read(bytes)) > 0) {
+                                    if(count==1) break;
+                                    fout.write(bytes, 0, count);
+                                    System.out.println(count);
+                                }
+                                System.out.println("Файл принят!");
+
+                                fout.close();
+                            }
+                            //Пришло обычное сообщение
                             else {
-                                byte[] DataPart = new byte[10000];
-                                inBStream.read(DataPart);
-                                String part = new String(DataPart);
-                                //Если аудио скачалось, воспроизводим
-                                if (part.contains("##END##OF##VOICE##MESSAGE")) {
-                                    System.out.println(part);
-                                    System.out.println("Конец голосового сообщения!");
-                                    downloading = false;
-                                    inMessage = new Scanner(clientSocket.getInputStream());
-                                    sounder.byteArrayPlayStream.reset();
-                                    for (int i = 0; i < DataList.size(); i++) {
-                                        sounder.byteArrayPlayStream.write(DataList.get(i));
-                                    }
-                                    Thread.sleep(20);
-                                    sounder.playAudio();
-                                    CharArea.grabFocus();
-                                    //Продолжаем скачивать
-                                } else {
-                                    DataList.add(DataPart);
-                                    System.out.println(DataPart.length);
-                                    System.out.println(DataPart.toString());
+                                String[] m = inMes.split("[ ]");
+                                String name = m[0];
+                                Color clr = findColor(name);
+                                // выводим сообщение
+                                StringBuilder str = new StringBuilder();
+                                for (int i = 1; i < m.length; i++) {
+                                    str.append(m[i]);
+                                    str.append(" ");
                                 }
-
-
+                                addColoredText(name, clr);
+                                doc.insertString(doc.getLength(), str.toString() + "\n", null);
                             }
-
                         }
                     }
                 } catch (Exception e) {
@@ -301,7 +290,6 @@ public class ClientWindow extends JFrame {
         }).start();
 
 
-
         Capture_btn.addItemListener(new ItemListener() {
             @Override
             public void itemStateChanged(ItemEvent e) {
@@ -310,46 +298,41 @@ public class ClientWindow extends JFrame {
                     //Захват данных
                     // с микрофона
                     //пока не отпущена кнопка
-                    sounder.captureAudio();
+                    sounder.byteArrayOutputStream.reset();
+                    try {
+                        sounder.captureAudio();
+                    }
+                    catch (LineUnavailableException ex)
+                    {
+                        ex.printStackTrace();
+                    }
 
                 }
                 else {
                     sounder.stopCapture = true;
                     try{
-                    Thread.sleep(10);
-                    Sound =sounder.byteArrayOutputStream.toByteArray();
+                        sounder.captureThread.join();
+                        Sound = new byte[sounder.byteArrayOutputStream.size()];
+                        Sound =sounder.byteArrayOutputStream.toByteArray();
+                        FileOutputStream fout = new FileOutputStream("Temp_sound");
+                        fout.write(Sound);
+                        fout.flush();
+                        fout.close();
                     }
                     catch (InterruptedException ex)
                     {
                         ex.printStackTrace();
                     }
+                    catch (IOException ex)
+                    {
 
+                    }
                     play_btn.setEnabled(true);
-
-
                 }
 
             }
         });
 
-        //Действие при закрытии окна
-        addWindowListener(new WindowAdapter() {
-            @Override
-            public void windowClosing(WindowEvent e) {
-                super.windowClosing(e);
-                try {
-                    // отправляем служебное сообщение, которое является признаком того, что клиент вышел из чата
-                    outMessage.println(clientName + "  ##session##end##");
-                    outMessage.flush();
-                    outMessage.close();
-                    inMessage.close();
-                    clientSocket.close();
-                } catch (IOException exc) {
-                    exc.printStackTrace();
-
-                }
-            }
-        });
 
         // обработчик события нажатия на кнопки отправки сообщения
         send_btn.addActionListener(new ActionListener() {
@@ -372,7 +355,6 @@ public class ClientWindow extends JFrame {
         });
         //При нажатии на Enter отправка сообщения при нажатии на V запись отпускаю клавишу перестаем записывать.
         MessageField.addKeyListener(new KeyAdapter() {
-
             public void keyPressed(KeyEvent e) {
                 super.keyPressed(e);
                 if (e.getKeyCode() == KeyEvent.VK_ENTER) {
@@ -406,38 +388,44 @@ public class ClientWindow extends JFrame {
             }
         });
 
-
+        //Загрузка файла в чат
+        //TODO только прикрепление, отправление со следующим текстовым сообщением
         LoadFileBtn.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                try {
                     JFileChooser fileopen = new JFileChooser();
                     int ret = fileopen.showDialog(null, "Открыть файл");
                     if (ret == JFileChooser.APPROVE_OPTION) {
-                        File file = fileopen.getSelectedFile();
-                        FileInputStream fin = new FileInputStream(file);
-                          int length =fin.available();
-                          File_Data = new byte[length];
-                            fin.read(File_Data);
-                            outMessage.println("##NEW##FILE## "+length+" "+file.getName());
-                            outMessage.flush();
-
-                            outBStream.write(File_Data);
-                        Thread.sleep(10);
-                            outBStream.flush();
-                            fin.close();
-                            System.out.println("Отправлен файл");
+                         selectedfile = fileopen.getSelectedFile();
+                        ImageIcon image = new ImageIcon("skrepka_green.png");
+                        Attachment.setIcon(image);
                     }
 
 
-                }
-                catch (FileNotFoundException ex)
-                {
-                    ex.printStackTrace();
-                }
-                catch (IOException ex)
-                {
-                    ex.printStackTrace();
+
+
+            }
+        });
+
+
+        //Действие при закрытии окна
+        addWindowListener(new WindowAdapter()
+        {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                super.windowClosing(e);
+                try {
+                    // отправляем служебное сообщение, которое является признаком того, что клиент вышел из чата
+                    outMessage.println(clientName + "  ##session##end##");
+                    outMessage.flush();
+                    inMessage.close();
+                    Thread.sleep(100);
+                    outMessage.close();
+
+                    clientSocket.close();
+                } catch (IOException exc) {
+                    exc.printStackTrace();
+
                 }
                 catch (InterruptedException ex)
                 {
@@ -471,50 +459,77 @@ public class ClientWindow extends JFrame {
     }
 
     // отправка сообщения
-    public void sendMsg() {
+    private void sendMsg() {
         if (MessageField.getText().isEmpty()) {
             try {
                 if(Sound.length>0){
-                outMessage.println("##VOICE##MESSAGE##\n");
-                outMessage.flush();
-                int sdvig = 0;
-                byte[] data = Sound;
-                    System.out.println(data.length);
-                    byte[] data_part = new byte[10000];
-                    int k = 0;
-                    while (sdvig < data.length - 1) {
-                        System.arraycopy(data,sdvig,data_part,0,10000);
-
-                        outBStream.write(data_part);
-                        System.out.println(data_part.toString());
-                        System.out.println(data_part.length + " отправлено");
-                        outBStream.flush();
-                        k++;
-                        sdvig += 10000;
-                    }
-
-                    outBStream.flush();
-                    outMessage.println("##END##OF##VOICE##MESSAGE\n");
+                    System.out.println("Отправляем голосовое сообщение");
+                    outMessage.println("##VOICE##MESSAGE##");
                     outMessage.flush();
-                    System.out.println("Отправлено" + k + " частей");
-                    Sound=new byte[0];
+                    Thread.sleep(100);
+                    outBStream = new DataOutputStream(clientSocket.getOutputStream());
+                    byte[] data = new byte[8*1024];
+                    int count;
+                    int sdvig =0;
+                    FileInputStream fin = new FileInputStream("Temp_sound");
+                    while((count=fin.read(data))>0) {
+                        outBStream.write(data,0,count);
+                        System.out.println(count);
+                    }
+                    System.out.println("Отправлено!");
+                    outBStream.flush();
+                    outBStream.write(-1);
                     play_btn.setEnabled(false);
-                    MessageField.grabFocus();
+                    Sound = new byte[0];
+                    fin.close();
+                    File file = new File("Temp_sound");
+                    file.delete();
                 }
             } catch (IOException e) {
                 e.printStackTrace();
             }
-
-
-
+            catch (InterruptedException e)
+            {
+                e.printStackTrace();
+            }
         } else {
+
             // формируем сообщение для отправки на сервер
             String messageStr = clientName + " : " + MessageField.getText();
-
             // отправляем сообщение
             outMessage.println(messageStr);
             outMessage.flush();
             MessageField.setText("");
+            try {
+            Thread.sleep(150);
+            if(!selectedfile.getName().isEmpty()){
+
+                    outMessage.println("##SHARED##FILE## " + selectedfile.getName());
+                    outMessage.flush();
+                    Thread.sleep(100);
+
+                    byte[] bytes = new byte[16 * 1024];
+                    FileInputStream in = new FileInputStream(selectedfile);
+                    DataOutputStream out = new DataOutputStream(clientSocket.getOutputStream());
+
+
+                    int count;
+                    while ((count = in.read(bytes)) > 0) {
+                        out.write(bytes, 0, count);
+                        System.out.println(count);
+                    }
+                    out.flush();
+                    Thread.sleep(100);
+                    out.write(-1);
+                    System.out.println("Файл отправлен");
+                    selectedfile = new File("");
+                    ImageIcon image = new ImageIcon("skrepka.png");
+                    Attachment.setIcon(image);
+                }
+
+            }
+            catch (IOException e){e.printStackTrace();}
+            catch (InterruptedException e) {e.printStackTrace();}
             MessageField.grabFocus();
         }
     }
@@ -541,20 +556,14 @@ public class ClientWindow extends JFrame {
         }
     }
 
-    private String getFileExtension(File file) {
-        String fileName = file.getName();
-        // если в имени файла есть точка и она не является первым символом в названии файла
-        if(fileName.lastIndexOf(".") != -1 && fileName.lastIndexOf(".") != 0)
-            // то вырезаем все знаки после последней точки в названии файла, то есть ХХХХХ.txt -> txt
-            return fileName.substring(fileName.lastIndexOf(".")+1);
-            // в противном случае возвращаем заглушку, то есть расширение не найдено
-        else return "";
+    private void createUIComponents() {
+        // TODO: place custom component creation code here
     }
 
     //При нажатии на воспроизведение сообщения отсылаем запрос на сервер чтобы скачать аудио
-    public class TestActionListener implements ActionListener {
+    public class Sound_Listener implements ActionListener {
         public void actionPerformed(ActionEvent e) {
-            outMessage.println("##ACTIVATE## " + e.getActionCommand());
+            outMessage.println("##DOWNLOAD##VOICE## " + e.getActionCommand());
             outMessage.flush();
 
         }
@@ -562,7 +571,7 @@ public class ClientWindow extends JFrame {
 
     public class File_Listener implements ActionListener {
         public void actionPerformed(ActionEvent e) {
-            outMessage.println("##DOWNLOAD##FILE## " + e.getActionCommand());
+            outMessage.println("##DOWNLOAD##FILE##REQUEST## " + e.getActionCommand());
             outMessage.flush();
             System.out.println("Запрос на загрузку");
 
