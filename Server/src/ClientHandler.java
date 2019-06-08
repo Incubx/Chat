@@ -60,9 +60,7 @@ public class ClientHandler implements Runnable {
                 if (!soundmessage) {
                     //Если не качаем звук
                     if (inMessage.hasNext()) {
-
                         String clientMessage = inMessage.nextLine();
-                        System.out.println(clientMessage);
                         // если клиент отправляет данное сообщение, то цикл прерывается и
                         // клиент выходит из чата
                         if (clientMessage.contains("##session##end##")) {
@@ -99,6 +97,7 @@ public class ClientHandler implements Runnable {
                                     sendMsg(clients.get(i) + "  #?#Nick#?#");
                                 }
                             sendMsg("##VOICES## " + server.counter);
+                                sendMsg("##FILES## "+server.file_counter);
                             server.sendMessageToAllClients(clientMessage);
                             clients.add(name);
                             server.sendMessageToAllClients(name + "  вошёл в чат! ");
@@ -111,6 +110,28 @@ public class ClientHandler implements Runnable {
                             System.out.println("Дальше будет запись голосового сообщения");
                             inMessage.reset();
                             soundmessage = true;
+                        }
+
+                        else if(clientMessage.contains("##NEW##FILE##"))
+                        {
+                            String[] mas = clientMessage.split("[ ]");
+                            int length = Integer.valueOf(mas[1]);
+                            String name = mas[2];
+                            byte[] Data = new byte[length];
+                            Thread.sleep(100);
+                            inBStream.read(Data);
+
+                            FileOutputStream fos = new FileOutputStream(new File(name));
+                                fos.write(Data);
+                                fos.flush();
+
+                            fos.close();
+                            server.file_counter++;
+                            server.sendMessageToAllClients(clientName  + " ##NEW##FILE##");
+
+
+
+
                         }
                         //Запрос на загрузку записи
                         else if (clientMessage.contains("##ACTIVATE##")) {
@@ -126,6 +147,7 @@ public class ClientHandler implements Runnable {
                                     fin.read(DataPart);
                                     DataLst.add(DataPart);
                                 }
+                                fin.close();
                                 //Отсылаем
                                 sendMsg("##VOICE##MESSAGE##\n");
                                 int k = 0;
@@ -148,6 +170,34 @@ public class ClientHandler implements Runnable {
                             } catch (IOException e) {
 
                             }
+
+
+                        }
+
+                        else if(clientMessage.contains("##DOWNLOAD##FILE##"))
+                        {
+                            try {
+                                //Узнаем какую запись надо загрузить
+                                String[] mas = clientMessage.split("[ ]");
+                                int number = Integer.valueOf(mas[1]);
+                                //Загружаем запись из файла
+                                FileInputStream fin = new FileInputStream("FILE" + number + ".txt");
+                               int length = fin.available();
+                               byte[] File_data = new byte[length];
+                               fin.read(File_data);
+                                fin.close();
+                                //Отсылаем
+
+                                sendMsg("##FILE## ");
+                                outBStream.write(File_data);
+                                outBStream.flush();
+                                Thread.sleep(10);
+                                outMessage.println("\n");
+                                outMessage.flush();
+                            } catch (IOException e) {
+
+                            }
+
 
                         }
                         //рассылка нормальных сообщений
@@ -200,6 +250,7 @@ public class ClientHandler implements Runnable {
             ex.printStackTrace();
 
         } catch (IOException e) {
+            e.printStackTrace();
 
         } finally {
             this.close();

@@ -3,6 +3,7 @@ package client;
 import javax.sound.sampled.*;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 
 public class AudioCapture01 {
@@ -17,16 +18,10 @@ public class AudioCapture01 {
     SourceDataLine sourceDataLine;
 
 
-    public AudioCapture01() {
+    public AudioCapture01()   throws Exception {
         byteArrayPlayStream = new ByteArrayOutputStream();
         byteArrayOutputStream = new ByteArrayOutputStream();
-    }
 
-    //Этот метод захватывает аудио
-    // с микрофона и сохраняет
-    // в объект ByteArrayOutputStream
-    public void captureAudio() {
-        try {
             //Установим все для захвата
             audioFormat = getAudioFormat();
             DataLine.Info dataLineInfo =
@@ -38,6 +33,12 @@ public class AudioCapture01 {
                             dataLineInfo);
             targetDataLine.open(audioFormat);
             targetDataLine.start();
+    }
+
+    //Этот метод захватывает аудио
+    // с микрофона и сохраняет
+    // в объект ByteArrayOutputStream
+    public void captureAudio() {
 
             //Создаем поток для захвата аудио
             // и запускаем его
@@ -47,9 +48,9 @@ public class AudioCapture01 {
                     new Thread(
                             new CaptureThread());
             captureThread.start();
-        } catch (Exception e) {
-            System.out.println(e);
-        }
+
+
+
     }
 
     //Этот метод проигрывает аудио

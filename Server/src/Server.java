@@ -9,14 +9,13 @@ public class Server implements  Runnable{
     ServerSocket serverSocket = null;
       //Счетчик голосовых сообщений
     public static volatile int counter = 0;
+    public static volatile int file_counter = 0;
     // список клиентов, которые будут подключаться к серверу
     private ArrayList<ClientHandler> clients = new ArrayList<ClientHandler>();
 
     public Server() {}
 
-
-    public void run(){// сокет клиента, это некий поток, который будет подключаться к серверу
-        // по адресу и порту
+    public void run(){
 
         // серверный сокет
         Socket clientSocket = null;
