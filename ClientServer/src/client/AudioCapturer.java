@@ -1,33 +1,27 @@
-import javax.swing.*;
-import java.awt.*;
-import java.awt.event.*;
-import java.io.*;
+package client;
+
 import javax.sound.sampled.*;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 
-public class AudioCapture01
-        {
-
-    boolean stopCapture = false;
-    ByteArrayOutputStream
+public class AudioCapturer {
+    public Thread captureThread;
+    public TargetDataLine targetDataLine;
+    volatile boolean stopCapture = false;
+    volatile ByteArrayOutputStream
             byteArrayOutputStream;
+    ByteArrayOutputStream byteArrayPlayStream;
     AudioFormat audioFormat;
-    TargetDataLine targetDataLine;
     AudioInputStream audioInputStream;
     SourceDataLine sourceDataLine;
 
 
+    public AudioCapturer()   throws LineUnavailableException {
+        byteArrayOutputStream = new ByteArrayOutputStream();
 
-    public AudioCapture01(){
-        audioFormat = getAudioFormat();
-    }
-
-    //Этот метод захватывает аудио
-    // с микрофона и сохраняет
-    // в объект ByteArrayOutputStream
-    private  void captureAudio(){
-        try{
             //Установим все для захвата
-
             audioFormat = getAudioFormat();
             DataLine.Info dataLineInfo =
                     new DataLine.Info(
@@ -38,31 +32,40 @@ public class AudioCapture01
                             dataLineInfo);
             targetDataLine.open(audioFormat);
             targetDataLine.start();
+            targetDataLine.close();
+    }
+
+    //Этот метод захватывает аудио
+    // с микрофона и сохраняет
+    // в объект ByteArrayOutputStream
+    public void captureAudio() throws  LineUnavailableException {
 
             //Создаем поток для захвата аудио
             // и запускаем его
             //он будет работать
             //пока не нажмут кнопку
-            Thread captureThread =
+        targetDataLine.open(audioFormat);
+        targetDataLine.start();
+            captureThread =
                     new Thread(
                             new CaptureThread());
             captureThread.start();
-        } catch (Exception e) {
-            System.out.println(e);
-            System.exit(0);
-        }
+
+
+
     }
 
     //Этот метод проигрывает аудио
     // данные, которые были сохранены
     // в ByteArrayOutputStream
-    private void playAudio() {
-        try{
+    public void playAudio() {
+        try {
+
             //Устанавливаем всё
             //для проигрывания
 
             byte audioData[] =
-                    byteArrayOutputStream.
+                    byteArrayPlayStream.
                             toByteArray();
 
             InputStream byteArrayInputStream
@@ -74,7 +77,7 @@ public class AudioCapture01
                     new AudioInputStream(
                             byteArrayInputStream,
                             audioFormat,
-                            audioData.length/audioFormat.
+                            audioData.length / audioFormat.
                                     getFrameSize());
             DataLine.Info dataLineInfo =
                     new DataLine.Info(
@@ -94,16 +97,16 @@ public class AudioCapture01
             Thread playThread =
                     new Thread(new PlayThread());
             playThread.start();
+
         } catch (Exception e) {
             System.out.println(e);
-            System.exit(0);
         }
     }
 
     //Этот метод создает и возвращает
     // объект AudioFormat
 
-    private AudioFormat getAudioFormat(){
+    private AudioFormat getAudioFormat() {
         float sampleRate = 8000.0F;
         //8000,11025,16000,22050,44100
         int sampleSizeInBits = 16;
@@ -125,52 +128,54 @@ public class AudioCapture01
 
     //Внутренний класс для захвата
 // данных с микрофона
-    class CaptureThread extends Thread{
+    class CaptureThread extends Thread {
 
         byte tempBuffer[] = new byte[10000];
-        public void run(){
-            byteArrayOutputStream =
-                    new ByteArrayOutputStream();
+
+        public void run() {
+
             stopCapture = false;
-            try{
+            try {
 
 
-                while(!stopCapture){
+                while (!stopCapture) {
 
 
                     int cnt = targetDataLine.read(
                             tempBuffer,
                             0,
                             tempBuffer.length);
-                    if(cnt > 0){
+                    if (cnt > 0) {
                         //Сохраняем данные в выходной поток
 
                         byteArrayOutputStream.write(
                                 tempBuffer, 0, cnt);
                     }
                 }
-                byteArrayOutputStream.close();
-            }catch (Exception e) {
+                System.out.println(byteArrayOutputStream.size());
+                targetDataLine.close();
+            } catch (Exception e) {
                 System.out.println(e);
-                System.exit(0);
             }
         }
     }
     //===================================//
 //Внутренний класс  для
 // проигрывания сохраненных аудио данных
-    class PlayThread extends Thread{
+    class PlayThread extends Thread {
         byte tempBuffer[] = new byte[10000];
 
-        public void run(){
-            try{
+
+        public void run() {
+            try {
+                Thread.currentThread().setPriority(MAX_PRIORITY);
                 int cnt;
                 // цикл пока не вернется -1
 
-                while((cnt = audioInputStream.
+                while ((cnt = audioInputStream.
                         read(tempBuffer, 0,
-                                tempBuffer.length)) != -1){
-                    if(cnt > 0){
+                                tempBuffer.length)) != -1) {
+                    if (cnt > 0) {
                         //Пишем данные во внутренний
                         // буфер канала
                         // откуда оно передастся
@@ -182,9 +187,9 @@ public class AudioCapture01
 
                 sourceDataLine.drain();
                 sourceDataLine.close();
-            }catch (Exception e) {
+                byteArrayPlayStream.reset();
+            } catch (Exception e) {
                 System.out.println(e);
-                System.exit(0);
             }
         }
     }

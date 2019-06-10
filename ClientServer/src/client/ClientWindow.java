@@ -42,7 +42,8 @@ public class ClientWindow extends JFrame {
     private DefaultListModel listmodel;
     private int counter;
     //Объект для записи и воспроизведения звука
-    private AudioCapture01 sounder ;
+    private AudioCapturer capturer;
+    private AudioPlayer player;
     //флаг, приходят ли сейчас обычные сообщения или качается аудио.
 
 
@@ -68,12 +69,13 @@ public class ClientWindow extends JFrame {
     private JLabel Attachment;
     //Ссылка на данное окно, чтобы была возможность закрыть его из другого потока.
     private ClientWindow cl = this;
+    private  boolean no_sound;
 
 
     // конструктор, если не получилось подключиться, то возвращаемся к начальному окну.
     public ClientWindow(String SERVER_HOST, String Nickname) {
         try {
-
+            no_sound = false;
             ClientList.setFocusable(false);
             jlNumberOfClients.setFocusable(false);
             //Инициализация массивов и объектов
@@ -109,7 +111,22 @@ public class ClientWindow extends JFrame {
             setTitle("Chat");
             setVisible(true);
 
-            sounder = new AudioCapture01();
+            player = new AudioPlayer();
+            System.out.println("Динамик подключен!");
+            try{
+            capturer = new AudioCapturer();
+            System.out.println("Микрофон подключен");
+            }
+            catch (Exception e){
+
+                JFrame topFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
+                JOptionPane.showMessageDialog(topFrame, "Микрофон не обнаружен!");
+                Capture_btn.setEnabled(false);
+                System.out.println("Микрофон не подключен");
+
+
+            }
+
             //Если не удастся подключиться к серверу вернемся к стартовому окну
         } catch (IOException e) {
             e.printStackTrace();
@@ -125,9 +142,21 @@ public class ClientWindow extends JFrame {
         {
             System.out.println("error");
             JFrame topFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
-            JOptionPane.showMessageDialog(topFrame, "Голосовое общение не доступно, микрофон не обнаружен");
-            Capture_btn.setEnabled(false);
+            JOptionPane.showMessageDialog(topFrame, "динамики не обнаружены!");
+             no_sound = true;
             play_btn.setEnabled(false);
+            try{
+                capturer = new AudioCapturer();
+                System.out.println("Микрофон подключен");}
+            catch (Exception ex){
+
+                JFrame topFrame1 = (JFrame) SwingUtilities.getWindowAncestor(this);
+                JOptionPane.showMessageDialog(topFrame1, "Микрофон не обнаружен!");
+                System.out.println("Микрофон не подключен");
+                Capture_btn.setEnabled(false);
+
+
+            }
         }
 
 
@@ -191,7 +220,7 @@ public class ClientWindow extends JFrame {
                             else if (inMes.contains("##SERVER##DOWN##")) {
 
                                 JFrame topFrame = (JFrame) SwingUtilities.getWindowAncestor(cl);
-                                sounder.targetDataLine.close();
+                                capturer.targetDataLine.close();
                                 JOptionPane.showMessageDialog(topFrame, "Подключение разорвано!");
                                 Start_window restart = new Start_window(SERVER_HOST, Nickname);
                                 cl.dispose();
@@ -209,6 +238,7 @@ public class ClientWindow extends JFrame {
                                 voice_btn.setFont(new Font("Arial", Font.PLAIN, 12));
                                 voice_btn.setOpaque(false);
                                 voice_btn.setSize(200, 15);
+                                if(no_sound) voice_btn.setEnabled(false);
                                 CharArea.setCaretPosition(doc.getLength());
                                 CharArea.insertComponent(voice_btn);
                                 doc.insertString(doc.getLength(), "\n", null);
@@ -241,12 +271,12 @@ public class ClientWindow extends JFrame {
                                 while ((count = inBStream.read(bytes)) > 0) {
                                     System.out.println(bytes[0]);
                                     if(count==1) break;
-                                    sounder.byteArrayPlayStream.write(bytes, 0, count);
-                                    sounder.byteArrayPlayStream.flush();
+                                    player.byteArrayPlayStream.write(bytes, 0, count);
+                                    player.byteArrayPlayStream.flush();
                                     System.out.println(count);
                                 }
                                 System.out.println("Принятно!");
-                                sounder.playAudio();
+                                player.playAudio();
                             }
                             //Приходит запрошенный файл
                             else if(inMes.contains("##REQUESTED##FILE##"))  {
@@ -254,7 +284,7 @@ public class ClientWindow extends JFrame {
                                 String filename = mas[1];
 
                                 byte[] bytes = new byte[16*1024];
-                                FileOutputStream fout= new FileOutputStream(filename);
+                                FileOutputStream fout= new FileOutputStream("Downloads\\"+filename);
                                 DataInputStream in = new DataInputStream(clientSocket.getInputStream());
                                 int count;
                                 while ((count = in.read(bytes)) > 0) {
@@ -262,7 +292,8 @@ public class ClientWindow extends JFrame {
                                     fout.write(bytes, 0, count);
                                     System.out.println(count);
                                 }
-                                System.out.println("Файл принят!");
+                                String Path= new File(".").getAbsolutePath();
+                                Process process = Runtime.getRuntime().exec("explorer.exe "+Path+"\\Downloads");
 
                                 fout.close();
                             }
@@ -298,9 +329,9 @@ public class ClientWindow extends JFrame {
                     //Захват данных
                     // с микрофона
                     //пока не отпущена кнопка
-                    sounder.byteArrayOutputStream.reset();
+                    capturer.byteArrayOutputStream.reset();
                     try {
-                        sounder.captureAudio();
+                        capturer.captureAudio();
                     }
                     catch (LineUnavailableException ex)
                     {
@@ -309,11 +340,11 @@ public class ClientWindow extends JFrame {
 
                 }
                 else {
-                    sounder.stopCapture = true;
+                    capturer.stopCapture = true;
                     try{
-                        sounder.captureThread.join();
-                        Sound = new byte[sounder.byteArrayOutputStream.size()];
-                        Sound =sounder.byteArrayOutputStream.toByteArray();
+                        capturer.captureThread.join();
+                        Sound = new byte[capturer.byteArrayOutputStream.size()];
+                        Sound = capturer.byteArrayOutputStream.toByteArray();
                         FileOutputStream fout = new FileOutputStream("Temp_sound");
                         fout.write(Sound);
                         fout.flush();
@@ -327,7 +358,8 @@ public class ClientWindow extends JFrame {
                     {
 
                     }
-                    play_btn.setEnabled(true);
+                    if(!no_sound) play_btn.setEnabled(true);
+
                 }
 
             }
@@ -371,16 +403,22 @@ public class ClientWindow extends JFrame {
         play_btn.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                sounder.byteArrayPlayStream.reset();
+                player.byteArrayPlayStream = new ByteArrayOutputStream();
+                player.byteArrayPlayStream.reset();
                 //Получаем звук из записанного
                 //Записанный массив перекидываем в воспроизведение.
                 try {
-                    sounder.byteArrayPlayStream.write(Sound);
+                    player.byteArrayPlayStream.write(Sound);
+                    player.playAudio();
+
                 }
                 catch (IOException ex) {
                     ex.printStackTrace();
                 }
-                sounder.playAudio();
+                catch (LineUnavailableException ex)
+                {
+
+                }
 
                 MessageField.grabFocus();
 
@@ -389,7 +427,6 @@ public class ClientWindow extends JFrame {
         });
 
         //Загрузка файла в чат
-        //TODO только прикрепление, отправление со следующим текстовым сообщением
         LoadFileBtn.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -398,7 +435,7 @@ public class ClientWindow extends JFrame {
                     if (ret == JFileChooser.APPROVE_OPTION) {
                          selectedfile = fileopen.getSelectedFile();
                         ImageIcon image = new ImageIcon("skrepka_green.png");
-                        Attachment.setIcon(image);
+                        LoadFileBtn.setIcon(image);
                     }
 
 
@@ -460,6 +497,8 @@ public class ClientWindow extends JFrame {
 
     // отправка сообщения
     private void sendMsg() {
+        if(!selectedfile.getName().isEmpty()){
+            sendFile();}
         if (MessageField.getText().isEmpty()) {
             try {
                 if(Sound.length>0){
@@ -476,6 +515,7 @@ public class ClientWindow extends JFrame {
                         outBStream.write(data,0,count);
                         System.out.println(count);
                     }
+                    Thread.sleep(100);
                     System.out.println("Отправлено!");
                     outBStream.flush();
                     outBStream.write(-1);
@@ -500,36 +540,8 @@ public class ClientWindow extends JFrame {
             outMessage.println(messageStr);
             outMessage.flush();
             MessageField.setText("");
-            try {
-            Thread.sleep(150);
-            if(!selectedfile.getName().isEmpty()){
-
-                    outMessage.println("##SHARED##FILE## " + selectedfile.getName());
-                    outMessage.flush();
-                    Thread.sleep(100);
-
-                    byte[] bytes = new byte[16 * 1024];
-                    FileInputStream in = new FileInputStream(selectedfile);
-                    DataOutputStream out = new DataOutputStream(clientSocket.getOutputStream());
 
 
-                    int count;
-                    while ((count = in.read(bytes)) > 0) {
-                        out.write(bytes, 0, count);
-                        System.out.println(count);
-                    }
-                    out.flush();
-                    Thread.sleep(100);
-                    out.write(-1);
-                    System.out.println("Файл отправлен");
-                    selectedfile = new File("");
-                    ImageIcon image = new ImageIcon("skrepka.png");
-                    Attachment.setIcon(image);
-                }
-
-            }
-            catch (IOException e){e.printStackTrace();}
-            catch (InterruptedException e) {e.printStackTrace();}
             MessageField.grabFocus();
         }
     }
@@ -556,14 +568,48 @@ public class ClientWindow extends JFrame {
         }
     }
 
-    private void createUIComponents() {
-        // TODO: place custom component creation code here
-    }
+   public void sendFile(){
+
+           try {
+               Thread.sleep(150);
+               outMessage.println("##SHARED##FILE## " + selectedfile.getName());
+               outMessage.flush();
+               Thread.sleep(100);
+
+               byte[] bytes = new byte[16 * 1024];
+               FileInputStream in = new FileInputStream(selectedfile);
+               DataOutputStream out = new DataOutputStream(clientSocket.getOutputStream());
+
+
+               int count;
+               while ((count = in.read(bytes)) > 0) {
+                   out.write(bytes, 0, count);
+                   System.out.println(count);
+               }
+               out.flush();
+               Thread.sleep(100);
+               out.write(-1);
+               System.out.println("Файл отправлен");
+               selectedfile = new File("");
+               ImageIcon image = new ImageIcon("skrepka.png");
+               LoadFileBtn.setIcon(image);
+               Thread.sleep(150);
+           }
+           catch (IOException e)
+           {
+               e.printStackTrace();
+           }
+           catch (InterruptedException e)
+           {
+               e.printStackTrace();
+           }
+
+   }
 
     //При нажатии на воспроизведение сообщения отсылаем запрос на сервер чтобы скачать аудио
     public class Sound_Listener implements ActionListener {
         public void actionPerformed(ActionEvent e) {
-            outMessage.println("##DOWNLOAD##VOICE## " + e.getActionCommand());
+            outMessage.println("##DOWNLOAD##VOICE##REQUEST## " + e.getActionCommand());
             outMessage.flush();
 
         }
@@ -578,5 +624,8 @@ public class ClientWindow extends JFrame {
         }
     }
     //Нажатие на клавишу
+
+
+
 
 }

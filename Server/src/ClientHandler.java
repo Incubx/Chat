@@ -57,8 +57,6 @@ public class ClientHandler implements Runnable {
         try {
             while (true) {
                 // Если от клиента пришло сообщение
-                if (!soundmessage) {
-                    //Если не качаем звук
                     if (inMessage.hasNext()) {
                         String clientMessage = inMessage.nextLine();
                         System.out.println(clientMessage);
@@ -229,7 +227,7 @@ public class ClientHandler implements Runnable {
 
                 // останавливаем выполнение потока на 100 мс
                 Thread.sleep(100);
-            }
+
 
         } catch (InterruptedException ex) {
             ex.printStackTrace();

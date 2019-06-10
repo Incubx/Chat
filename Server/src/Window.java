@@ -26,7 +26,7 @@ public class Window extends JFrame {
                    server.ShutDown();
                 for(int i=0;i<server.sound_counter;i++)
                 {
-                    File file = new File("Sound"+i+".txt");
+                    File file = new File("SOUND"+i+".txt");
                     file.delete();
                 }
                 for(int i=0;i<server.files.size();i++)
