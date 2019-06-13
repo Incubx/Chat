@@ -12,11 +12,7 @@ public class AudioCapturer {
     volatile boolean stopCapture = false;
     volatile ByteArrayOutputStream
             byteArrayOutputStream;
-    ByteArrayOutputStream byteArrayPlayStream;
-    AudioFormat audioFormat;
-    AudioInputStream audioInputStream;
-    SourceDataLine sourceDataLine;
-
+    private AudioFormat audioFormat;
 
     public AudioCapturer()   throws LineUnavailableException {
         byteArrayOutputStream = new ByteArrayOutputStream();
@@ -58,50 +54,7 @@ public class AudioCapturer {
     //Этот метод проигрывает аудио
     // данные, которые были сохранены
     // в ByteArrayOutputStream
-    public void playAudio() {
-        try {
 
-            //Устанавливаем всё
-            //для проигрывания
-
-            byte audioData[] =
-                    byteArrayPlayStream.
-                            toByteArray();
-
-            InputStream byteArrayInputStream
-                    = new ByteArrayInputStream(
-                    audioData);
-            AudioFormat audioFormat =
-                    getAudioFormat();
-            audioInputStream =
-                    new AudioInputStream(
-                            byteArrayInputStream,
-                            audioFormat,
-                            audioData.length / audioFormat.
-                                    getFrameSize());
-            DataLine.Info dataLineInfo =
-                    new DataLine.Info(
-                            SourceDataLine.class,
-                            audioFormat);
-            sourceDataLine = (SourceDataLine)
-                    AudioSystem.getLine(
-                            dataLineInfo);
-            sourceDataLine.open(audioFormat);
-            sourceDataLine.start();
-
-            //Создаем поток для проигрывания
-            // данных и запускаем его
-            // он будет работать пока
-            // все записанные данные не проиграются
-
-            Thread playThread =
-                    new Thread(new PlayThread());
-            playThread.start();
-
-        } catch (Exception e) {
-            System.out.println(e);
-        }
-    }
 
     //Этот метод создает и возвращает
     // объект AudioFormat
@@ -130,7 +83,7 @@ public class AudioCapturer {
 // данных с микрофона
     class CaptureThread extends Thread {
 
-        byte tempBuffer[] = new byte[10000];
+        byte[] tempBuffer = new byte[10000];
 
         public void run() {
 
@@ -160,39 +113,5 @@ public class AudioCapturer {
         }
     }
     //===================================//
-//Внутренний класс  для
-// проигрывания сохраненных аудио данных
-    class PlayThread extends Thread {
-        byte tempBuffer[] = new byte[10000];
-
-
-        public void run() {
-            try {
-                Thread.currentThread().setPriority(MAX_PRIORITY);
-                int cnt;
-                // цикл пока не вернется -1
-
-                while ((cnt = audioInputStream.
-                        read(tempBuffer, 0,
-                                tempBuffer.length)) != -1) {
-                    if (cnt > 0) {
-                        //Пишем данные во внутренний
-                        // буфер канала
-                        // откуда оно передастся
-                        // на звуковой выход
-                        sourceDataLine.write(
-                                tempBuffer, 0, cnt);
-                    }
-                }
-
-                sourceDataLine.drain();
-                sourceDataLine.close();
-                byteArrayPlayStream.reset();
-            } catch (Exception e) {
-                System.out.println(e);
-            }
-        }
-    }
-//===================================//
 
 }//end outer class AudioCapturer.java

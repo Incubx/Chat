@@ -6,15 +6,17 @@ import java.util.ArrayList;
 public class Server implements  Runnable{
     // порт, который будет прослушивать наш сервер
     static final int PORT = 3443;
-    ServerSocket serverSocket = null;
+    private ServerSocket serverSocket = null;
       //Счетчик голосовых сообщений
     public static volatile int sound_counter = 0;
     public static volatile ArrayList<String> files = new ArrayList<>();
     // список клиентов, которые будут подключаться к серверу
     private ArrayList<ClientHandler> clients = new ArrayList<ClientHandler>();
 
-    public Server() {}
 
+    public Server() throws  IOException{
+        serverSocket = new ServerSocket(PORT);
+    }
     public void run(){
 
         // серверный сокет
@@ -22,7 +24,7 @@ public class Server implements  Runnable{
 
         try {
             // создаём серверный сокет на определенном порту
-            serverSocket = new ServerSocket(PORT);
+            //serverSocket = new ServerSocket(PORT);
             System.out.println("Сервер запущен!");
             // запускаем бесконечный цикл
             while (true) {

@@ -61,7 +61,7 @@ public class AudioCapture01
             //Устанавливаем всё
             //для проигрывания
 
-            byte audioData[] =
+            byte[] audioData =
                     byteArrayOutputStream.
                             toByteArray();
 
@@ -127,7 +127,7 @@ public class AudioCapture01
 // данных с микрофона
     class CaptureThread extends Thread{
 
-        byte tempBuffer[] = new byte[10000];
+        byte[] tempBuffer = new byte[10000];
         public void run(){
             byteArrayOutputStream =
                     new ByteArrayOutputStream();
@@ -160,7 +160,7 @@ public class AudioCapture01
 //Внутренний класс  для
 // проигрывания сохраненных аудио данных
     class PlayThread extends Thread{
-        byte tempBuffer[] = new byte[10000];
+        byte[] tempBuffer = new byte[10000];
 
         public void run(){
             try{

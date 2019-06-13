@@ -66,7 +66,6 @@ public class ClientWindow extends JFrame {
     private JScrollPane Scroller;
     private JToggleButton Capture_btn;
     private JButton LoadFileBtn;
-    private JLabel Attachment;
     //Ссылка на данное окно, чтобы была возможность закрыть его из другого потока.
     private ClientWindow cl = this;
     private  boolean no_sound;
@@ -122,7 +121,11 @@ public class ClientWindow extends JFrame {
                 JFrame topFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
                 JOptionPane.showMessageDialog(topFrame, "Микрофон не обнаружен!");
                 Capture_btn.setEnabled(false);
+                ImageIcon imageIcon = new ImageIcon("Icons\\No_micro.png");
+                Capture_btn.setIcon(imageIcon);
                 System.out.println("Микрофон не подключен");
+
+
 
 
             }
@@ -154,6 +157,8 @@ public class ClientWindow extends JFrame {
                 JOptionPane.showMessageDialog(topFrame1, "Микрофон не обнаружен!");
                 System.out.println("Микрофон не подключен");
                 Capture_btn.setEnabled(false);
+                ImageIcon imageIcon = new ImageIcon("Icons\\No_micro.png");
+                Capture_btn.setIcon(imageIcon);
 
 
             }
@@ -431,10 +436,10 @@ public class ClientWindow extends JFrame {
             @Override
             public void actionPerformed(ActionEvent e) {
                     JFileChooser fileopen = new JFileChooser();
-                    int ret = fileopen.showDialog(null, "Открыть файл");
+                    int ret = fileopen.showDialog(null, "Прикрепить файл");
                     if (ret == JFileChooser.APPROVE_OPTION) {
                          selectedfile = fileopen.getSelectedFile();
-                        ImageIcon image = new ImageIcon("skrepka_green.png");
+                        ImageIcon image = new ImageIcon("Icons\\skrepka_green.png");
                         LoadFileBtn.setIcon(image);
                     }
 
@@ -591,7 +596,7 @@ public class ClientWindow extends JFrame {
                out.write(-1);
                System.out.println("Файл отправлен");
                selectedfile = new File("");
-               ImageIcon image = new ImageIcon("skrepka.png");
+               ImageIcon image = new ImageIcon("Icons\\skrepka.png");
                LoadFileBtn.setIcon(image);
                Thread.sleep(150);
            }

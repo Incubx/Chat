@@ -7,14 +7,14 @@ import java.io.InputStream;
 
 public class AudioPlayer {
     volatile ByteArrayOutputStream byteArrayPlayStream;
-    AudioInputStream audioInputStream;
-    SourceDataLine sourceDataLine;
+    private AudioInputStream audioInputStream;
+    private SourceDataLine sourceDataLine;
 
 
     public AudioPlayer() throws Exception{
 
         byteArrayPlayStream = new ByteArrayOutputStream();
-        byte audioData[] = new byte[0];
+        byte[] audioData = new byte[0];
 
         InputStream byteArrayInputStream = new ByteArrayInputStream(audioData);
         AudioFormat audioFormat =
@@ -43,7 +43,7 @@ public class AudioPlayer {
             // он будет работать пока
             // все записанные данные не проиграются
 
-        byte audioData[] =
+        byte[] audioData =
                 byteArrayPlayStream.
                         toByteArray();
 
@@ -85,7 +85,7 @@ public class AudioPlayer {
 
 
     class PlayThread extends Thread {
-        byte tempBuffer[] = new byte[10000];
+        byte[] tempBuffer = new byte[10000];
 
 
         public void run() {

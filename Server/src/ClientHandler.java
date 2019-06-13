@@ -17,33 +17,19 @@ public class ClientHandler implements Runnable {
     private Server server;
     // исходящее сообщение
     private PrintWriter outMessage;
-    private OutputStream outBStream;
-    // входящее собщение
     private Scanner inMessage;
-    private InputStream inBStream;
-    // клиентский сокет
     private Socket clientSocket = null;
-    //Имя данного пользователя
     private String clientName;
-    //Загружается ли звуковое сообщение
-    private boolean soundmessage;
-    //Массив для звукового сообщения
-    private volatile ArrayList<byte[]> DataLst;
+
 
     // конструктор, который принимает клиентский сокет и сервер
     public ClientHandler(Socket socket, Server server) {
         try {
-            //Инициализация массива и увеличение кол-ва пользователей
-            DataLst = new ArrayList<>();
-            soundmessage = false;
-
             this.server = server;
             this.clientSocket = socket;
             //Получаем потоки
             this.outMessage = new PrintWriter(socket.getOutputStream());
             this.inMessage = new Scanner(socket.getInputStream());
-            /*outBStream = new BufferedOutputStream(socket.getOutputStream());
-            inBStream = new BufferedInputStream(socket.getInputStream());*/
 
         } catch (IOException ex) {
             ex.printStackTrace();
@@ -95,7 +81,7 @@ public class ClientHandler implements Runnable {
                                 for (int i = 0; i < clients.size(); i++) {
                                     sendMsg(clients.get(i) + "  #?#Nick#?#");
                                 }
-                            sendMsg("##VOICES## " + server.sound_counter);
+                            sendMsg("##VOICES## " + Server.sound_counter);
                             server.sendMessageToAllClients(clientMessage);
                             clients.add(name);
                             server.sendMessageToAllClients(name + "  вошёл в чат! ");
@@ -107,9 +93,9 @@ public class ClientHandler implements Runnable {
 
                             byte[] bytes = new byte[8*1024];
                             int count;
-                            String filename = "SOUND"+server.sound_counter+".txt";
+                            String filename = "SOUND"+ Server.sound_counter +".txt";
                             FileOutputStream fos = new FileOutputStream(filename);
-                            inBStream = new DataInputStream(clientSocket.getInputStream());
+                             DataInputStream inBStream = new DataInputStream(clientSocket.getInputStream());
                             while ((count = inBStream.read(bytes)) > 0) {
                                 System.out.println(bytes[0]);
                                 if(count==1) break;
@@ -123,7 +109,7 @@ public class ClientHandler implements Runnable {
 
 
                             server.sendMessageToAllClients(clientName+" ##NEW##VOICE##");
-                            server.sound_counter++;
+                            Server.sound_counter++;
                         }
                         else if(clientMessage.contains("##SHARED##FILE##"))
                         {
@@ -143,7 +129,7 @@ public class ClientHandler implements Runnable {
 
                             fout.close();
 
-                            server.files.add(filename);
+                            Server.files.add(filename);
                             server.sendMessageToAllClients(clientName  +" "+filename +" ##NEW##FILE##");
 
 
@@ -161,15 +147,15 @@ public class ClientHandler implements Runnable {
                                 outMessage.flush();
                                 Thread.sleep(100);
 
-                                outBStream = new DataOutputStream(clientSocket.getOutputStream());
+                                DataOutputStream  outBStream = new DataOutputStream(clientSocket.getOutputStream());
                                 byte[] data = new byte[8*1024];
                                 int count;
-                                int sdvig =0;
                                 FileInputStream fin = new FileInputStream("SOUND"+number+".txt");
                                 while((count=fin.read(data))>0) {
                                     outBStream.write(data,0,count);
                                     System.out.println(count);
                                 }
+                                Thread.sleep(100);
                                 System.out.println("Отправлено!");
                                 outBStream.flush();
                                 outBStream.write(-1);

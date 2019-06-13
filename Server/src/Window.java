@@ -2,6 +2,7 @@ import javax.swing.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.File;
+import java.io.IOException;
 
 
 public class Window extends JFrame {
@@ -13,9 +14,11 @@ public class Window extends JFrame {
         setContentPane(mainPanel);
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         setTitle("Сервер");
-        setVisible(true);
+
         setBounds(0,0,400,100);
+        try{
         Server server = new Server();
+            setVisible(true);
         Thread server_stream = new Thread(server);
         server_stream.start();
         addWindowListener(new WindowAdapter() {
@@ -24,19 +27,25 @@ public class Window extends JFrame {
                 super.windowClosing(e);
                     // Отключаем сервер и удаляем все загруженные голосовые сообщения и файлы.
                    server.ShutDown();
-                for(int i=0;i<server.sound_counter;i++)
+                for(int i = 0; i< Server.sound_counter; i++)
                 {
                     File file = new File("SOUND"+i+".txt");
                     file.delete();
                 }
-                for(int i=0;i<server.files.size();i++)
+                for(int i = 0; i< Server.files.size(); i++)
                 {
-                    File file = new File(server.files.get(i));
+                    File file = new File(Server.files.get(i));
                     file.delete();
 
                 }
             }
         });
+        }
+        catch (IOException e)
+        {
+            JFrame topFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
+            JOptionPane.showMessageDialog(topFrame, "Не удалось создать сервер");
+        }
 
 
 
